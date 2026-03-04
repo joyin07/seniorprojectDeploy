@@ -7,17 +7,19 @@ MAIN API SERVER - MongoDB Version
 - Routes
     / = basic check if server is running
     /api/me = returns logged-in user info (protected - needs login)
+    /api/tokens = saves Canvas and Navigator tokens (protected)
+    /api/onboarding-status = checks if user has completed onboarding (protected)
     /api/sync-courses = fetches user's Canvas courses and stores them (protected)
 """
 
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from database import get_or_create_user, update_user, users_collection
+from database import get_or_create_user, update_user, users_collection, init_db, user_has_tokens
 from clerk_auth import verify_clerk_token
 from canvas_retriever import CanvasContentRetriever
-from database import get_or_create_user, update_user, users_collection, init_db
 
 load_dotenv()
 
@@ -30,6 +32,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Request models
+class TokensRequest(BaseModel):
+    canvas_token: str
+    navigator_token: str
+
 
 async def get_current_user(authorization: str = Header(...)) -> dict:
     token = authorization.replace("Bearer ", "")
@@ -47,20 +56,71 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
 @app.on_event("startup")
 def startup():
     init_db()
-    
+
 @app.get("/")
 async def root():
     return {"status": "running"}
 
 @app.get("/api/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
+    """Returns logged-in user info including onboarding status"""
     return {
         "id": str(current_user["_id"]),
         "clerk_id": current_user["clerk_id"],
+        "university_id": current_user.get("university_id"),
+        "canvas_user_id": current_user.get("canvas_user_id"),
         "email": current_user.get("email"),
         "first_name": current_user.get("first_name"),
-        "last_name": current_user.get("last_name")
+        "last_name": current_user.get("last_name"),
+        "has_canvas_token": current_user.get("canvas_token") is not None,
+        "has_navigator_token": current_user.get("navigator_token") is not None,
+        "onboarding_complete": user_has_tokens(current_user)
     }
+
+
+@app.post("/api/tokens")
+async def save_tokens(
+    tokens: TokensRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Save Canvas and Navigator tokens for user.
+    Validates Canvas token by attempting to fetch courses.
+    """
+    
+    # Verify Canvas token works by fetching courses
+    try:
+        canvas = CanvasContentRetriever(
+            canvas_url="https://ufl.instructure.com",
+            access_token=tokens.canvas_token
+        )
+        courses = canvas.get_courses()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Canvas token: {str(e)}")
+    
+    # TODO: Verify Navigator token when we have Navigator API
+    
+    # Save tokens
+    update_user(current_user["clerk_id"], {
+        "canvas_token": tokens.canvas_token,
+        "navigator_token": tokens.navigator_token
+    })
+    
+    return {
+        "message": "Tokens saved successfully",
+        "onboarding_complete": True
+    }
+
+
+@app.get("/api/onboarding-status")
+async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
+    """Check if user has completed onboarding (has both tokens)"""
+    return {
+        "has_canvas_token": current_user.get("canvas_token") is not None,
+        "has_navigator_token": current_user.get("navigator_token") is not None,
+        "onboarding_complete": user_has_tokens(current_user)
+    }
+
 
 """
 Fetches user's Canvas courses and returns: courses_synced (count) and courses list.
@@ -89,11 +149,9 @@ Example return:
 """
 @app.post("/api/sync-courses")
 async def sync_courses(current_user: dict = Depends(get_current_user)):
-    # Try to get canvas_token from user's record, fallback to env
     canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")
     if not canvas_token:
-        raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
-
+         raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
     canvas = CanvasContentRetriever(
         canvas_url="https://ufl.instructure.com",
         access_token=canvas_token
@@ -112,9 +170,7 @@ async def sync_courses(current_user: dict = Depends(get_current_user)):
 
 """
 Retrieves all quizzes for a given course from Canvas.
-Each quiz has: id, title, description (HTML), html_url, question_count, points_possible, due_at, published.
 This function should be called every time an instructor tries to make a new quiz. If a quiz's metadata is not in MongoDB, a new Mongo document will be made for it at this point.
-
 Example return:
 {
   "quiz_count": 1,
@@ -137,7 +193,7 @@ Example return:
 async def retrieve_quizzes(course_id: int, current_user: dict = Depends(get_current_user)):
     canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")
     if not canvas_token:
-        raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
+          raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
 
     canvas = CanvasContentRetriever(
         canvas_url="https://ufl.instructure.com",
@@ -150,10 +206,10 @@ async def retrieve_quizzes(course_id: int, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=502, detail=f"Failed to fetch quizzes from Canvas: {str(e)}")
     return {"quiz_count": len(quizzes), "quizzes": quizzes}
 
+
 """
 Retrieves all files for a given course from Canvas.
 Each file has: id, display_name, url (direct download), updated_at, size (bytes), mime_class, content-type.
-
 Example return:
 {
   "file_count": 1,
@@ -178,7 +234,7 @@ Example return:
 async def retrieve_files(course_id: int, current_user: dict = Depends(get_current_user)):
     canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")
     if not canvas_token:
-        raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
+         raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
 
     canvas = CanvasContentRetriever(
         canvas_url="https://ufl.instructure.com",
@@ -192,10 +248,10 @@ async def retrieve_files(course_id: int, current_user: dict = Depends(get_curren
 
     return {"file_count": len(files), "files": files}
 
+
 """
 Retrieves all questions for a given quiz from Canvas.
 Each question has: id, question_name, question_text (HTML), question_type, points_possible, answers (with weight indicating correctness: 100 = correct, 0 = incorrect).
-
 Example return:
 {
   "question_count": 1,
@@ -215,11 +271,10 @@ Example return:
 }
 """
 @app.get("/api/courses/{course_id}/quizzes/{quiz_id}/questions")
-async def retrieve_quiz_questions(course_id: int, quiz_id: int):
-    # canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")
-    canvas_token = os.getenv("CANVAS_TOKEN")
+async def retrieve_quiz_questions(course_id: int, quiz_id: int, current_user: dict = Depends(get_current_user)):
+    canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")
     if not canvas_token:
-        raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
+         raise HTTPException(status_code=400, detail="No Canvas token found. Please add your Canvas API token.")
 
     canvas = CanvasContentRetriever(
         canvas_url="https://ufl.instructure.com",

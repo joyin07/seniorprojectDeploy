@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import './styles/App.css';
 import Dashboard from './pages/dashboard';
 import Login from './pages/login';
+import AddCourses from './pages/addCourses';
+import Tokens from './pages/tokens';
+
 
 function App() {
    const { getToken, isSignedIn } = useAuth();
@@ -69,6 +72,8 @@ function App() {
         {/* Anything else = login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
 
+        <Route path="/tokens" element={<Tokens />} /> 
+        <Route path="/add-courses" element={<AddCourses />} /> 
       </Routes>
     </BrowserRouter>
   );

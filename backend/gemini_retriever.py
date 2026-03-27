@@ -1,13 +1,16 @@
 import os
 import json
 import re
+from datetime import datetime
 from google import genai
 from dotenv import load_dotenv
 import httpx
 import io
+from database import save_course_quiz
 
 load_dotenv()
 
+GEMINI_MODEL = "gemini-2.5-flash"
 client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
 
 QUIZ_PROMPT = """You are an expert educator and quiz creator. From all of the provided course materials combined, create exactly 5 challenging multiple-choice practice quiz questions that test deep understanding of the most important concepts.
@@ -38,20 +41,38 @@ Rules:
 - No markdown, no code fences, no text outside the JSON object"""
 
 """
-    Generate a multiple-choice quiz from a list of Canvas file URLs.
+    Generate a multiple-choice quiz from a list of Canvas file URLs and save it to MongoDB.
 
     Args:
-        files: List of dicts with keys: 'url', 'display_name', 'content_type'
+        files: List of dicts with keys: 'url', 'display_name', 'content_type', optionally 'id'
         canvas_token: Canvas API token used to authenticate file downloads
+        course_id: Canvas course ID the quiz belongs to
+        university_id: University identifier (e.g. "ufl")
+        title: Quiz title stored in MongoDB
+        description: Quiz description stored in MongoDB
+        quiz_type: Canvas quiz type (default "practice_quiz")
+        points_per_question: Points per question (default 1.0)
+        generation_metadata: Dict with optional fields:
+            source_prev_quiz_ids, question_types_requested, difficulty
 
     Returns:
-        Dict with 'questions' list, each containing: question, options, answer, rationale
+        Dict with 'quiz_doc_id' (MongoDB _id string), 'question_count', and 'questions' list
 
     Raises:
         ValueError: If files list is empty or a file entry is missing a URL
         RuntimeError: If any download, Gemini upload, or generation step fails
     """
-def generate_quiz_from_files(files: list, canvas_token: str) -> dict:
+def generate_quiz_from_files(
+    files: list,
+    canvas_token: str,
+    course_id: int = None,
+    university_id: str = None,
+    title: str = "Generated Quiz",
+    description: str = "",
+    quiz_type: str = "practice_quiz",
+    points_per_question: float = 1.0,
+    generation_metadata: dict = None,
+) -> dict:
     if not files:
         raise ValueError("At least one file is required to generate a quiz.")
 
@@ -102,14 +123,14 @@ def generate_quiz_from_files(files: list, canvas_token: str) -> dict:
 
         try:
             gemini_response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=contents,
                 config={"response_mime_type": "application/json"}
             )
         except Exception as e:
             raise RuntimeError(f"Gemini content generation failed: {str(e)}")
 
-        # Step 3: Parse the JSON response
+        # Parse the JSON response
         raw_text = gemini_response.text.strip()
 
         # Strip markdown code fences in case Gemini wraps the output anyway
@@ -130,7 +151,38 @@ def generate_quiz_from_files(files: list, canvas_token: str) -> dict:
                 "Gemini response is missing the 'questions' field or it is not a list."
             )
 
-        return quiz_data
+        # Build and save the course_quizzes document
+        meta = generation_metadata or {}
+        now = datetime.utcnow()
+        quiz_doc = {
+            "university_id": university_id,
+            "course_id": course_id,
+            "canvas_quiz_id": None,
+            "title": title,
+            "description": description,
+            "quiz_type": quiz_type,
+            "points_per_question": points_per_question,
+            "question_count": len(quiz_data["questions"]),
+            "questions": quiz_data["questions"],
+            "status": "generated_pending_review",
+            "created_at": now,
+            "updated_at": now,
+            "generation_metadata": {
+                "source_file_ids": [f["id"] for f in files if "id" in f],
+                "source_prev_quiz_ids": meta.get("source_prev_quiz_ids", []),
+                "question_types_requested": meta.get("question_types_requested", {}),
+                "difficulty": meta.get("difficulty", "medium"),
+                "model": GEMINI_MODEL,
+            },
+        }
+
+        quiz_doc_id = save_course_quiz(quiz_doc)
+
+        return {
+            "quiz_doc_id": quiz_doc_id,
+            "question_count": len(quiz_data["questions"]),
+            "questions": quiz_data["questions"],
+        }
 
     finally:
         # Best-effort cleanup: delete uploaded files from Gemini's servers

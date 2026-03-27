@@ -65,12 +65,19 @@ async def verify_gemini_token(api_key: str) -> bool:
 
 
 class FileInfo(BaseModel):
+    id: int | None = None
     url: str
     display_name: str
     content_type: str = "application/pdf"
 
 class GenerateQuizRequest(BaseModel):
+    course_id: int
+    title: str
+    description: str = ""
+    quiz_type: str = "practice_quiz"
+    points_per_question: float = 1.0
     files: list[FileInfo]
+    generation_metadata: dict = {}
 
 
 async def get_current_user(authorization: str = Header(...)) -> dict:
@@ -353,10 +360,20 @@ async def generate_quiz(body: GenerateQuizRequest, current_user: dict = Depends(
     files = [f.model_dump() for f in body.files]
 
     try:
-        quiz = generate_quiz_from_files(files, canvas_token)
+        result = generate_quiz_from_files(
+            files=files,
+            canvas_token=canvas_token,
+            course_id=body.course_id,
+            university_id=current_user.get("university_id"),
+            title=body.title,
+            description=body.description,
+            quiz_type=body.quiz_type,
+            points_per_question=body.points_per_question,
+            generation_metadata=body.generation_metadata,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
-    return quiz
+    return result

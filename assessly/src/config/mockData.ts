@@ -118,3 +118,70 @@ export const mockQuestionsResponse = {
     }
   ]
 };
+
+// Generated quiz questions mock data
+export const mockGeneratedQuizQuestions = {
+  "question_count": 5,
+  "questions": [
+    {
+      "spot_number": 1,
+      "group": "Group 1",
+      "question": "Question 1",
+      "prompt": "Which of the following best describes Big-O notation?",
+      "answer_choices": [
+        "It gives the exact running time of an algorithm on a specific machine",
+        "It represents the upper bound on an algorithm’s growth rate for large inputs",
+        "It measures the minimum possible running time in all cases",
+        "It only applies to constant-time algorithms"
+      ]
+    },
+    {
+      "spot_number": 2,
+      "group": "Group 1",
+      "question": "Question 2",
+      "prompt": "What is the time complexity of binary search in a sorted array?",
+      "answer_choices": [
+        "O(n)",
+        "O(log n)",
+        "O(n log n)",
+        "O(1)"
+      ]
+    },
+    {
+      "spot_number": 3,
+      "group": "Group 1",
+      "question": "Question 3",
+      "prompt": "Which data structure uses the Last In, First Out (LIFO) principle?",
+      "answer_choices": [
+        "Queue",
+        "Heap",
+        "Stack",
+        "Linked List"
+      ]
+    },
+    {
+      "spot_number": 4,
+      "group": "Group 1",
+      "question": "Question 4",
+      "prompt": "Which of the following sorting algorithms typically has the best average-case time complexity?",
+      "answer_choices": [
+        "Bubble Sort",
+        "Selection Sort",
+        "Merge Sort",
+        "Insertion Sort"
+      ]
+    },
+    {
+      "spot_number": 5,
+      "group": "Group 1",
+      "question": "Question 5",
+      "prompt": "What does a hash table aim to provide in the average case?",
+      "answer_choices": [
+        "Constant-time lookup and insertion",
+        "Sorted traversal without extra work",
+        "Guaranteed worst-case O(1) for every operation",
+        "Only sequential access to data"
+      ]
+    }
+  ]
+};

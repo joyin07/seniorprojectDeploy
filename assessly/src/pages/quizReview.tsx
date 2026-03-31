@@ -5,6 +5,7 @@ import sideImg from '../assets/Quiz_Structure_Graphic.png';
 import questionMark from '../assets/Question_Mark.png';
 import greenBackground from '../assets/Green_Box.png';
 import backArrow from '../assets/Caret_Left.png';
+import { mockGeneratedQuizQuestions } from '../config/mockData';
 
 import '../styles/quizStructure.css';
 
@@ -25,72 +26,16 @@ type ReviewQuestion = {
   };
 };
 
-const reviewQuestions: ReviewQuestion[] = [
-  {
-    id: 1,
-    group: 'Group 1',
-    title: 'Question 1',
-    prompt: 'Which of the following best describes Big-O notation?',
-    answers: [
-      { id: 'q1-a1', text: 'It gives the exact running time of an algorithm on a specific machine' },
-      { id: 'q1-a2', text: 'It represents the upper bound on an algorithm’s growth rate for large inputs' },
-      { id: 'q1-a3', text: 'It measures the minimum possible running time in all cases' },
-      { id: 'q1-a4', text: 'It only applies to constant-time algorithms' }
-    ]
-  },
-  {
-    id: 2,
-    title: 'Question 2',
-    answers: []
-  },
-  {
-    id: 3,
-    title: 'Question 3',
-    answers: []
-  },
-  {
-    id: 4,
-    group: 'Group 2',
-    title: 'Question 4',
-    prompt: 'Which of the following best describes Big-O notation?',
-    answers: [
-      { id: 'q4-a1', text: 'It gives the exact running time of an algorithm on a specific machine' },
-      { id: 'q4-a2', text: 'It represents the upper bound on an algorithm’s growth rate for large inputs' },
-      { id: 'q4-a3', text: 'It measures the minimum possible running time in all cases' },
-      { id: 'q4-a4', text: 'It only applies to constant-time algorithms' }
-    ]
-  },
-  {
-    id: 5,
-    title: 'Question 5',
-    answers: []
-  },
-  {
-    id: 6,
-    title: 'Question 6',
-    answers: []
-  },
-  {
-    id: 7,
-    title: 'Question 7',
-    answers: []
-  },
-  {
-    id: 8,
-    title: 'Question 8',
-    answers: []
-  },
-  {
-    id: 9,
-    title: 'Question 9',
-    answers: []
-  },
-  {
-    id: 10,
-    title: 'Question 10',
-    answers: []
-  }
-];
+const reviewQuestions: ReviewQuestion[] = mockGeneratedQuizQuestions.questions.map((question) => ({
+  id: question.spot_number,
+  group: question.group,
+  title: question.question,
+  prompt: question.prompt,
+  answers: question.answer_choices.map((choice, index) => ({
+    id: `q${question.spot_number}-a${index + 1}`,
+    text: choice
+  }))
+}));
 
 function QuizReview() {
   const navigate = useNavigate();

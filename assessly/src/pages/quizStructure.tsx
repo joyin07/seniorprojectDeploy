@@ -184,7 +184,7 @@ function QuizStructure() {
 
         try {
             console.log("Generating quiz from files:", selectedFiles);
-            const result = await api.generateQuiz(selectedFiles, selectedCourseId ?? undefined, selectedQuizIds, parseInt(questionNum) || 5);
+            const result = await api.generateQuiz(selectedFiles, selectedCourseId ?? undefined, selectedQuizIds, parseInt(questionNum) || 5, title);
             console.log("Generated quiz:", result);
             setGeneratedQuiz(result);
             

@@ -15,23 +15,22 @@ Return ONLY a valid JSON object with no extra text, markdown code fences, or exp
 {
   "questions": [
     {
-      "question": "The full question text here?",
-      "options": {
-        "A": "First option",
-        "B": "Second option",
-        "C": "Third option",
-        "D": "Fourth option"
-      },
-      "answer": "A",
-      "rationale": "Brief explanation of why this answer is correct."
+      "question_stem": "The full question text here?",
+      "choices": [
+        { "text": "First option", "is_correct": false },
+        { "text": "Second option", "is_correct": true },
+        { "text": "Third option", "is_correct": false },
+        { "text": "Fourth option", "is_correct": false }
+      ],
+      "rationale": "Brief explanation of why the correct answer is correct."
     }
   ]
 }
 
 Rules:
 - Exactly 5 questions total across all provided materials
-- Each question must have exactly 4 options (A, B, C, D)
-- The answer field must be a single letter matching one of the option keys
+- Each question must have exactly 4 choices
+- Exactly one choice per question must have is_correct set to true
 - Questions should be substantive and require understanding, not just recall
 - No markdown, no code fences, no text outside the JSON object"""
 

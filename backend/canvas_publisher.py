@@ -30,17 +30,15 @@ def publish_quiz_to_canvas(quiz_doc: dict, canvas_token: str) -> dict:
     }
     course_id = quiz_doc["course_id"]
 
-    # Step 1: Create quiz shell
+    # Step 1: Create quiz shell via New Quizzes API
     shell_payload = {
         "quiz": {
             "title": quiz_doc.get("title", "Practice Quiz"),
-            "description": quiz_doc.get("description_html", ""),
-            "quiz_type": "quizzes.next",
-            "published": False
+            "instructions": quiz_doc.get("description_html", ""),
         }
     }
     shell_resp = requests.post(
-        f"{CANVAS_BASE_URL}/api/v1/courses/{course_id}/quizzes",
+        f"{CANVAS_BASE_URL}/api/quiz/v1/courses/{course_id}/quizzes",
         headers=headers,
         json=shell_payload
     )
@@ -50,6 +48,7 @@ def publish_quiz_to_canvas(quiz_doc: dict, canvas_token: str) -> dict:
         )
 
     shell_data = shell_resp.json()
+    print(f"Quiz shell response: {shell_data}")
     new_quiz_id = shell_data.get("id")
     assignment_id = shell_data.get("assignment_id")
 
@@ -70,27 +69,29 @@ def publish_quiz_to_canvas(quiz_doc: dict, canvas_token: str) -> dict:
             )
 
         item_payload = {
-            "entry_type": "Item",
-            "entry": {
-                "title": f"Question {question['position']}",
-                "points_possible": question.get("points_possible", 1),
-                "item_body": question["question_stem_html"],
-                "interaction_type_slug": "choice",
-                "interaction_data": {
-                    "choices": [
-                        {
-                            "id": c["internal_choice_id"],
-                            "item_body": c["text_html"]
-                        }
-                        for c in question["choices"]
-                    ]
-                },
-                "scoring_data": {
-                    "value": correct_choice["internal_choice_id"]
-                },
-                "scoring_algorithm": "Equivalence",
-                "feedback": {
-                    "neutral": question.get("overall_rationale_html", "")
+            "item": {
+                "entry_type": "Item",
+                "entry": {
+                    "title": f"Question {question['position']}",
+                    "points_possible": question.get("points_possible", 1),
+                    "item_body": question["question_stem_html"],
+                    "interaction_type_slug": "choice",
+                    "interaction_data": {
+                        "choices": [
+                            {
+                                "id": c["internal_choice_id"],
+                                "item_body": c["text_html"]
+                            }
+                            for c in question["choices"]
+                        ]
+                    },
+                    "scoring_data": {
+                        "value": correct_choice["internal_choice_id"]
+                    },
+                    "scoring_algorithm": "Equivalence",
+                    "feedback": {
+                        "neutral": question.get("overall_rationale_html", "")
+                    }
                 }
             }
         }
@@ -114,12 +115,22 @@ def publish_quiz_to_canvas(quiz_doc: dict, canvas_token: str) -> dict:
             "canvas_item_id": canvas_item_id
         })
 
-    # Step 3: Publish the quiz
-    publish_resp = requests.patch(
-        f"{CANVAS_BASE_URL}/api/v1/courses/{course_id}/quizzes/{new_quiz_id}",
-        headers=headers,
-        json={"quiz": {"published": True}}
+    # Step 3: Fetch current quiz state, then PATCH it with published=True
+    get_resp = requests.get(
+        f"{CANVAS_BASE_URL}/api/quiz/v1/courses/{course_id}/quizzes/{new_quiz_id}",
+        headers=headers
     )
+    if not get_resp.ok:
+        raise RuntimeError(f"Failed to fetch quiz for publishing: {get_resp.status_code} {get_resp.text}")
+    quiz_state = get_resp.json()
+    print(f"Current quiz state: {quiz_state}")
+    quiz_state["published"] = True
+    publish_resp = requests.patch(
+        f"{CANVAS_BASE_URL}/api/quiz/v1/courses/{course_id}/quizzes/{new_quiz_id}",
+        headers=headers,
+        json={"quiz": quiz_state}
+    )
+    print(f"Publish response: {publish_resp.status_code} {publish_resp.text}")
     if not publish_resp.ok:
         raise RuntimeError(
             f"Failed to publish quiz: {publish_resp.status_code} {publish_resp.text}"

@@ -380,4 +380,9 @@ async def generate_quiz(body: GenerateQuizRequest, current_user: dict = Depends(
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+    import json as _json
+    print("\n--- GENERATED QUIZ ---")
+    print(_json.dumps(quiz, indent=2))
+    print("----------------------\n")
+
     return quiz

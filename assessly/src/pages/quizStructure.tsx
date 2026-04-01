@@ -187,10 +187,7 @@ function QuizStructure() {
             const result = await api.generateQuiz(selectedFiles, selectedCourseId ?? undefined, selectedQuizIds, parseInt(questionNum) || 5, title);
             console.log("Generated quiz:", result);
             setGeneratedQuiz(result);
-            
-            // Navigate to results page or show success
-            alert(`Quiz generated successfully! ${result.questions?.length || 0} questions created.`);
-            navigate('/dashboard');
+            navigate(`/quiz-review?quiz_id=${result.quiz_id}`);
         } catch (error: any) {
             console.error('Failed to generate quiz:', error);
             setGenerateError(error.message || 'Failed to generate quiz');

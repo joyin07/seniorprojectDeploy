@@ -444,6 +444,23 @@ async def generate_quiz(body: GenerateQuizRequest, current_user: dict = Depends(
     return {"quiz_id": str(result.inserted_id), "questions": questions}
 
 
+@app.get("/api/quizzes/{quiz_id}")
+async def get_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        quiz_doc = course_quizzes_collection.find_one({
+            "_id": ObjectId(quiz_id),
+            "clerk_id": current_user["clerk_id"]
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid quiz id.")
+
+    if not quiz_doc:
+        raise HTTPException(status_code=404, detail="Quiz not found.")
+
+    quiz_doc["_id"] = str(quiz_doc["_id"])
+    return quiz_doc
+
+
 @app.post("/api/quizzes/{quiz_id}/publish")
 async def publish_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
     canvas_token = current_user.get("canvas_token") or os.getenv("CANVAS_TOKEN")

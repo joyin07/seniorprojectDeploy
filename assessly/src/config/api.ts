@@ -65,6 +65,13 @@ export const api = {
     return response.json();
   },
 
+getAssesslyQuizzes: async (courseId: number) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/api/courses/${courseId}/assessly-quizzes`, { headers });
+    if (!response.ok) throw new Error('Failed to get Assessly quizzes');
+    return response.json();
+  },
+
 getQuiz: async (quizId: string) => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`, { headers });

@@ -445,6 +445,17 @@ async def generate_quiz(body: GenerateQuizRequest, current_user: dict = Depends(
     return {"quiz_id": str(result.inserted_id), "questions": questions}
 
 
+@app.get("/api/courses/{course_id}/assessly-quizzes")
+async def get_assessly_quizzes(course_id: int, current_user: dict = Depends(get_current_user)):
+    docs = list(course_quizzes_collection.find(
+        {"clerk_id": current_user["clerk_id"], "course_id": course_id},
+        {"_id": 1, "title": 1, "status": 1, "question_count": 1, "created_at": 1}
+    ))
+    for doc in docs:
+        doc["_id"] = str(doc["_id"])
+    return {"quizzes": docs}
+
+
 @app.get("/api/quizzes/{quiz_id}")
 async def get_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
     try:

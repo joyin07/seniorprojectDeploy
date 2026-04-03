@@ -52,10 +52,10 @@ function Dashboard() {
           const coursesData = await Promise.all(
             teacherCourses.map(async (course: any) => {
               try {
-                const quizzesData = await api.getQuizzes(course.id);
+                const quizzesData = await api.getAssesslyQuizzes(course.id);
                 return {
                   ...course,
-                  quiz_count: quizzesData.quiz_count,
+                  quiz_count: quizzesData.quizzes.length,
                   quizzes: quizzesData.quizzes
                 };
               } catch (error) {
@@ -135,25 +135,36 @@ function Dashboard() {
             </div>
             <h2 className="section-heading" style={{fontWeight: "400"}}>Published</h2>
             <div className="cards">
-              {selectedCourse.quizzes && selectedCourse.quizzes.length > 0 ? (
-                selectedCourse.quizzes.map((quiz: any) => (
-                  <article className="card" key={quiz.id}>
+              {selectedCourse.quizzes?.filter((q: any) => q.status === 'published').length > 0 ? (
+                selectedCourse.quizzes.filter((q: any) => q.status === 'published').map((quiz: any) => (
+                  <article className="card" key={quiz._id} onClick={() => navigate(`/quiz-review?quiz_id=${quiz._id}`)} style={{ cursor: 'pointer' }}>
                     <img src={cardImg} alt={quiz.title} className="card-image" />
                     <h3 className="card-title">{quiz.title}</h3>
                     <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#666' }}>
-                      {quiz.question_count} {quiz.question_count === 1 ? 'question' : 'questions'} • {quiz.points_possible} points
+                      {quiz.question_count} {quiz.question_count === 1 ? 'question' : 'questions'}
                     </p>
                   </article>
                 ))
               ) : (
-                <p>No quizzes found for this course</p>
+                <p>No published quizzes</p>
               )}
             </div>
-            {/* need to store drafts or unplublished quizzes here  */}
-             <h2 className="section-heading" style={{fontWeight: "400"}}>Drafts</h2>
-             <div>
-
-             </div>
+            <h2 className="section-heading" style={{fontWeight: "400"}}>Drafts</h2>
+            <div className="cards">
+              {selectedCourse.quizzes?.filter((q: any) => q.status !== 'published').length > 0 ? (
+                selectedCourse.quizzes.filter((q: any) => q.status !== 'published').map((quiz: any) => (
+                  <article className="card" key={quiz._id} onClick={() => navigate(`/quiz-review?quiz_id=${quiz._id}`)} style={{ cursor: 'pointer' }}>
+                    <img src={cardImg} alt={quiz.title} className="card-image" />
+                    <h3 className="card-title">{quiz.title}</h3>
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#666' }}>
+                      {quiz.question_count} {quiz.question_count === 1 ? 'question' : 'questions'}
+                    </p>
+                  </article>
+                ))
+              ) : (
+                <p>No drafts</p>
+              )}
+            </div>
           </section>
         ) : (
           <section className="section">

@@ -13,25 +13,25 @@ export const API_BASE = rawApiBase.startsWith('http://') || rawApiBase.startsWit
   ? rawApiBase.replace(/\/$/, '')
   : `https://${rawApiBase.replace(/\/$/, '')}`;
 
-// async function readResponseDetail(response: Response, fallback: string) {
-//   const contentType = response.headers.get('content-type') || '';
+async function readResponseDetail(response: Response, fallback: string) {
+  const contentType = response.headers.get('content-type') || '';
 
-//   if (contentType.includes('application/json')) {
-//     try {
-//       const data = await response.json();
-//       return data.detail || data.message || fallback;
-//     } catch {
-//       return fallback;
-//     }
-//   }
+  if (contentType.includes('application/json')) {
+    try {
+      const data = await response.json();
+      return data.detail || data.message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
 
-//   try {
-//     const text = await response.text();
-//     return text || fallback;
-//   } catch {
-//     return fallback;
-//   }
-// }
+  try {
+    const text = await response.text();
+    return text || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 
 // Helper to get Clerk token
@@ -121,11 +121,7 @@ saveQuizToCanvas: async (quizId: string) => {
       headers,
     });
     if (!response.ok) {
-      let detail = 'Failed to publish quiz';
-      try {
-        const error = await response.json();
-        detail = error.detail || detail;
-      } catch {}
+      const detail = await readResponseDetail(response, 'Failed to publish quiz');
       throw new Error(detail);
     }
     return response.json();
@@ -139,11 +135,7 @@ generateQuiz: async (files: { url: string; display_name: string; content_type: s
       body: JSON.stringify({ files, course_id, quiz_ids: quiz_ids ?? [], question_count: question_count ?? 5, title: title || "Generated Practice Quiz" })
     });
     if (!response.ok) {
-      let detail = 'Failed to generate quiz';
-      try {
-        const error = await response.json();
-        detail = error.detail || detail;
-      } catch {}
+      const detail = await readResponseDetail(response, 'Failed to generate quiz');
       throw new Error(detail);
     }
     return response.json();

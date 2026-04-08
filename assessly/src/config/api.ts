@@ -7,7 +7,32 @@
 
 // const USE_MOCK = false; // Changed to false to use real backend
 
-const API_BASE = "http://localhost:8000";
+// const API_BASE = "http://localhost:8000";
+const rawApiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+export const API_BASE = rawApiBase.startsWith('http://') || rawApiBase.startsWith('https://')
+  ? rawApiBase.replace(/\/$/, '')
+  : `https://${rawApiBase.replace(/\/$/, '')}`;
+
+// async function readResponseDetail(response: Response, fallback: string) {
+//   const contentType = response.headers.get('content-type') || '';
+
+//   if (contentType.includes('application/json')) {
+//     try {
+//       const data = await response.json();
+//       return data.detail || data.message || fallback;
+//     } catch {
+//       return fallback;
+//     }
+//   }
+
+//   try {
+//     const text = await response.text();
+//     return text || fallback;
+//   } catch {
+//     return fallback;
+//   }
+// }
+
 
 // Helper to get Clerk token
 async function getAuthHeaders() {
